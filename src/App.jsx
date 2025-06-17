@@ -5,10 +5,16 @@ import Spinner from "./components/Spinner";
 import MovieCard from "./components/MovieCard";
 
 const App = () => {
+
+  // State
   const [searchTerm, setSearchTerm] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [movieList, setMovieList] = useState("");
   const [isloading, setIsLoading] = useState(false);
+  const [debouncesSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+
+
+ // The Movie Database API
   const API_BASE_URL = "https://api.themoviedb.org/3";
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
   const API_OPTIONS = {
@@ -19,11 +25,16 @@ const App = () => {
     },
   };
 
-  const fetchMovies = async () => {
+  // Function to fetch movies based on search term or default to popular movies
+
+  const fetchMovies = async (query = "") => {
     setIsLoading(true);
     setErrorMessage("");
     try {
-      const endpoint = `${API_BASE_URL}/movie/popular?api_key=${API_KEY}`;
+      const endpoint = query
+        ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}`
+        : `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
+
       const response = await fetch(endpoint, API_OPTIONS);
       if (!response.ok) {
         throw new Error("Network response was not ok");
@@ -45,8 +56,8 @@ const App = () => {
   };
 
   useEffect(() => {
-    fetchMovies();
-  }, []);
+    fetchMovies(searchTerm);
+  }, [searchTerm]);
   return (
     <main>
       <div className="pattern">
@@ -60,10 +71,10 @@ const App = () => {
             <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
           </header>
 
-          <section className="all-movies">
+          <section className="all-movies relative">
             <h2 className="mt-[40px]">All Movies</h2>
             {isloading ? (
-              <Spinner />
+              <Spinner className="absolute -translate-x-1/2 -translate-y-1/2 top-2/4 left-1/2" />
             ) : errorMessage ? (
               <p className="text-red-500">{errorMessage}</p>
             ) : (
