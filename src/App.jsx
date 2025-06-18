@@ -3,18 +3,17 @@ import React, { useEffect, useState } from "react";
 import Search from "./components/Search";
 import Spinner from "./components/Spinner";
 import MovieCard from "./components/MovieCard";
+import { useDebounce } from "react-use";
 
 const App = () => {
-
   // State
   const [searchTerm, setSearchTerm] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [movieList, setMovieList] = useState("");
   const [isloading, setIsLoading] = useState(false);
-  const [debouncesSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  const [debouncesSearchTerm, setDebouncedSearchTerm] = useState("");
 
-
- // The Movie Database API
+  // The Movie Database API
   const API_BASE_URL = "https://api.themoviedb.org/3";
   const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
   const API_OPTIONS = {
@@ -54,10 +53,15 @@ const App = () => {
       setIsLoading(false);
     }
   };
+  // Debounce the search term to avoid too many API calls
+  // This will wait for 500ms after the last change to searchTerm before updating debouncedSearchTerm
+  // and triggering the fetchMovies function
+
+  useDebounce(() => setDebouncedSearchTerm(searchTerm), 500, [searchTerm]);
 
   useEffect(() => {
-    fetchMovies(searchTerm);
-  }, [searchTerm]);
+    fetchMovies(debouncesSearchTerm);
+  }, [debouncesSearchTerm]);
   return (
     <main>
       <div className="pattern">
