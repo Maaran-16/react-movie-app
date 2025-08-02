@@ -4,14 +4,17 @@ import Search from "./components/Search";
 import Spinner from "./components/Spinner";
 import MovieCard from "./components/MovieCard";
 import { useDebounce } from "react-use";
+import { getTrendingMovies, updateSearchCount } from "./appwrite";
 
 const App = () => {
   // State
   const [searchTerm, setSearchTerm] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [movieList, setMovieList] = useState("");
+  const [movieList, setMovieList] = useState([]);
   const [isloading, setIsLoading] = useState(false);
-  const [debouncesSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  const [trendingMovies, setTrendingMovies] = useState([]);
 
   // The Movie Database API
   const API_BASE_URL = "https://api.themoviedb.org/3";
@@ -44,8 +47,12 @@ const App = () => {
         setMovieList([]);
         return;
       }
-      setMovieList(data.results);
-      console.log(data);
+      setMovieList(data.results || []);
+      if (query && data.results.length > 0) {
+        // If a search term is provided and movies are found, update the search count
+        await updateSearchCount(query, data.results[0]);
+        console.log("Search count updated successfully");
+      }
     } catch (error) {
       console.error("Error fetching movies:", error);
       setErrorMessage("Failed to fetch movies. Please try again later.");
@@ -53,15 +60,35 @@ const App = () => {
       setIsLoading(false);
     }
   };
+  // Fetch trending movies on initial load
+  const loadTrendingMovies = async () => {
+    try {
+      const movies = await getTrendingMovies();
+      if (movies && movies.length > 0) {
+        setTrendingMovies(movies);
+      } else {
+        console.log("No trending movies found or empty response");
+        setTrendingMovies([]);
+      }
+    } catch (error) {
+      console.error("Error fetching trending movies:", error);
+      setTrendingMovies([]);
+    }
+  };
+
   // Debounce the search term to avoid too many API calls
   // This will wait for 500ms after the last change to searchTerm before updating debouncedSearchTerm
-  // and triggering the fetchMovies function
 
   useDebounce(() => setDebouncedSearchTerm(searchTerm), 500, [searchTerm]);
 
   useEffect(() => {
-    fetchMovies(debouncesSearchTerm);
-  }, [debouncesSearchTerm]);
+    fetchMovies(debouncedSearchTerm);
+  }, [debouncedSearchTerm]);
+
+  useEffect(() => {
+    // Load trending movies on initial load
+    loadTrendingMovies();
+  }, []);
   return (
     <main>
       <div className="pattern">
@@ -75,8 +102,35 @@ const App = () => {
             <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
           </header>
 
+          <section className="trending">
+            <h2>Trending Movies</h2>
+
+            {trendingMovies && trendingMovies.length > 0 ? (
+              <ul>
+                {trendingMovies.map((movie, index) => (
+                  <li key={movie.$id}>
+                    <p>{index + 1}</p>
+                    <img
+                      src={movie.poster_url}
+                      alt={movie.title || "Movie poster"}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "path-to-default-poster.jpg";
+                      }}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="no-trending text-white py-5">
+                No trending movies available. Try searching for movies first.
+              </p>
+            )}
+          </section>
+
           <section className="all-movies relative">
-            <h2 className="mt-[40px]">All Movies</h2>
+            <h2 className="mt-[20px]">All Movies</h2>
             {isloading ? (
               <Spinner className="absolute -translate-x-1/2 -translate-y-1/2 top-2/4 left-1/2" />
             ) : errorMessage ? (
